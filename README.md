@@ -23,7 +23,7 @@ python code/run_all.py
 
 Runtime is roughly 25 minutes on a standard machine, dominated by the Monte Carlo
 simulations. To reproduce only the estimation results from the assembled dataset,
-skip `build.py` and run `econ.py` and `scenario.py` directly.
+skip `build.py` and run `econ.py`, `size_power.py` and `scenario.py` directly.
 
 ---
 
@@ -32,7 +32,8 @@ skip `build.py` and run `econ.py` and `scenario.py` directly.
 ```
 code/
   build.py                 assembles the quarterly dataset from data/raw
-  econ.py                  unit roots, bounds tests, cointegration, placebo, power
+  econ.py                  unit roots, bounds tests, cointegration, placebo, MDE
+  size_power.py            Monte Carlo size and power of the ARDL bounds F-test
   gh_critical_values.py    Monte Carlo critical values for the Gregory-Hansen test
   scenario.py              calibrated collateral-coverage stress exercise
   run_all.py               runs the above in order
