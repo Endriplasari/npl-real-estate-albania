@@ -1,19 +1,23 @@
 cff-version: 1.2.0
 message: "If you use this software or dataset, please cite it as below."
-title: "Replication package: Real Estate Exposure and Non-Performing Loans in Albania"
+title: "Replication package: Real Estate Exposure and Nonperforming Loans in Albania: Identification Failure and a Calibrated Stress Alternative"
 authors:
-  - family-names: Meka
-    given-names: Elvin
+  - family-names: Zeneli
+    given-names: Mimoza
+    affiliation: "Tirana Business University College"
   - family-names: Plasari
     given-names: Endri
     affiliation: "Tirana Business University College"
-  - family-names: Zeneli
-    given-names: Mimoza
+  - family-names: Meka
+    given-names: Elvin
+    affiliation: "Tirana Business University College"
   - family-names: Baholli
     given-names: Indrit
     affiliation: "Tirana Business University College"
   - family-names: Kruja
     given-names: Samel
-version: 1.0.0
-date-released: 2026-09-15
+    affiliation: "Tirana Business University College"
+version: 1.1.0
+date-released: 2026-10-21
 license: MIT
+repository-code: "https://github.com/Endriplasari/npl-real-estate-albania"
