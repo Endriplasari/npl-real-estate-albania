@@ -1,9 +1,11 @@
-# Real Estate Exposure and Non-Performing Loans in Albania
+# Real Estate Exposure and Nonperforming Loans in Albania
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22769974.svg)](https://doi.org/10.5281/zenodo.22769974)
 
 Replication package for:
 
-> Meka, E., Plasari, E., Zeneli, M., Baholli, I., & Kruja, S. *Real Estate Exposure
-> and Non-Performing Loans in Albania: Identification Failure and a Calibrated
+> Zeneli, M., Plasari, E., Meka, E., Baholli, I., & Kruja, S. *Real Estate Exposure
+> and Nonperforming Loans in Albania: Identification Failure and a Calibrated
 > Stress Alternative.*
 
 This repository contains everything needed to reproduce every number, table and
@@ -82,17 +84,24 @@ decimal places.
 
 ## Reproducibility
 
-Random seeds are fixed throughout: 20260909 for the bounds-test critical values,
-19960303 for the Gregory-Hansen critical values, 4242 for the power analysis and
-1000 onwards for the placebo replications. Re-running the scripts reproduces the
-published figures exactly.
+Random seeds are fixed throughout, so re-running the scripts reproduces the
+published figures exactly:
+
+| Seed       | Where                                   | What it controls                          |
+|------------|-----------------------------------------|-------------------------------------------|
+| `42`       | `econ.py`, `UECM.bounds_test(rng=42)`   | finite-sample bounds-test critical values |
+| `2026`     | `econ.py`                               | random-walk placebo replications          |
+| `19960303` | `gh_critical_values.py`                 | Gregory-Hansen critical values            |
+| `20261020` | `size_power.py`                         | size and power simulations                |
+
+`scenario.py` is deterministic and uses no random numbers.
 
 Two sets of critical values are simulated rather than taken from published
 tables. The bounds-test values follow the logic of Narayan (2005) but are
 generated for the exact sample length and regressor count used here. The
 Gregory-Hansen values are generated for n = 42; the simulation code was
 validated by reproducing, at n = 250, the asymptotic values published in
-Gregory and Hansen (1996, Table 1) to within 0.18 across all cells tested.
+Gregory and Hansen (1996b, Table 1) to within 0.18 across all cells tested.
 That validation is in `output/gh_validation_CS.json`.
 
 ---
@@ -106,7 +115,10 @@ Python 3.11 or later. See `requirements.txt`.
 ## Citation
 
 If you use this material, please cite the paper and this repository.
-A DOI is minted for each release through Zenodo; see `CITATION.cff`.
+The archive is deposited on Zenodo under the concept DOI
+[10.5281/zenodo.22769974](https://doi.org/10.5281/zenodo.22769974), which always
+resolves to the most recent version. Author and version metadata are in
+`CITATION.cff`.
 
 ## Licence
 
