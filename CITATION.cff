@@ -5,18 +5,23 @@ authors:
   - family-names: Zeneli
     given-names: Mimoza
     affiliation: "Tirana Business University College"
+    orcid: "https://orcid.org/0009-0007-4370-0284"
   - family-names: Plasari
     given-names: Endri
     affiliation: "Tirana Business University College"
+    orcid: "https://orcid.org/0000-0003-1864-5942"
   - family-names: Meka
     given-names: Elvin
     affiliation: "Tirana Business University College"
+    orcid: "https://orcid.org/0000-0003-3404-7475"
   - family-names: Baholli
     given-names: Indrit
     affiliation: "Tirana Business University College"
+    orcid: "https://orcid.org/0009-0008-6608-3239"
   - family-names: Kruja
     given-names: Samel
     affiliation: "Tirana Business University College"
+    orcid: "https://orcid.org/0000-0003-2717-138X"
 version: 1.1.0
 date-released: 2026-10-21
 license: MIT
