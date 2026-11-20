@@ -5,9 +5,10 @@ HERE = pathlib.Path(__file__).parent
 STEPS = [
     ("build.py",              "Assemble the quarterly dataset from data/raw"),
     ("gh_critical_values.py", "Simulate Gregory-Hansen critical values (slow)"),
-    ("econ.py",               "Unit roots, bounds tests, placebo, minimum detectable effects"),
-    ("size_power.py",         "Monte Carlo size and power of the bounds test (slow)"),
-    ("scenario.py",           "Calibrated stress scenario"),
+    ("econ.py",               "Unit roots, bounds F- and t-tests, diagnostics, cross-checks, placebo, lag grid"),
+    ("regimes.py",            "Structural stability: interaction/Chow tests, sup-F, sub-sample bounds tests"),
+    ("size_power.py",         "Monte Carlo size and power of the bounds procedure, calibrated designs (slow)"),
+    ("scenario.py",           "Calibrated stress scenario, sensitivity, loss distribution, reverse stress test"),
 ]
 
 for script, label in STEPS:

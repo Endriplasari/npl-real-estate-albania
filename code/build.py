@@ -183,6 +183,54 @@ df["rritje_kredi"] = 100*(df["kredi_tot"]/df["kredi_tot"].shift(4) - 1)
 df["d_covid"]    = [1 if q in [(2020,6),(2020,9),(2020,12),(2021,3)] else 0 for q in QS]
 df["d_ltv"]      = [1 if (q[0],q[1]) >= (2025,9) else 0 for q in QS]
 
+# ---- 10. Series added in revision 2 (reviewer requests) ----------------
+# (a) currency composition of real-estate lending (credit euroisation)
+mort_fx = ["1.3.2.4", "1.3.3.4", "1.3.4.4"]                 # USD, EUR, other currencies
+bre_fx  = ["1.2.2.5", "1.2.3.5", "1.2.4.5"]
+df["hip_fx_share"] = [100*sum(q9[c].get(q) or 0 for c in mort_fx) /
+                      max(1e-9, sum(q9[c].get(q) or 0 for c in mort)) for q in QS]
+df["ppb_fx_share"] = [100*sum(q9[c].get(q) or 0 for c in bre_fx) /
+                      max(1e-9, sum(q9[c].get(q) or 0 for c in bre)) for q in QS]
+df["re_fx_share"]  = [100*(sum(q9[c].get(q) or 0 for c in mort_fx) + sum(q9[c].get(q) or 0 for c in bre_fx)) /
+                      max(1e-9, sum(q9[c].get(q) or 0 for c in mort) + sum(q9[c].get(q) or 0 for c in bre)) for q in QS]
+# (b) log levels for the normalisation that avoids the common denominator
+df["ln_re"]     = (df["hipoteka"] + df["pp_biznes"]).apply(lambda x: math.log(x) if pd.notna(x) else None)
+df["ln_other"]  = (df["kredi_tot"] - df["hipoteka"] - df["pp_biznes"]).apply(lambda x: math.log(x) if pd.notna(x) else None)
+df["ln_kredi"]  = df["kredi_tot"].apply(lambda x: math.log(x) if pd.notna(x) else None)
+# (c) quarter-on-quarter (non-overlapping) credit growth, %
+df["dln_kredi"] = 100*(df["ln_kredi"] - df["ln_kredi"].shift(1))
+# (d) regime indicators
+df["d_regime"]  = [1 if q >= (2022, 3) else 0 for q in QS]      # credit-expansion regime, 2022Q1 onwards
+df["d_postcovid"] = [1 if q >= (2020, 6) else 0 for q in QS]    # from the onset of the pandemic, 2020Q2 onwards
+
+# (e) exchange rate: official end-of-month rate, lek per euro (Bank of Albania), end-of-quarter value.
+import csv as _csv
+_rows = list(_csv.reader(open(U + "boa_exchange_rates_end_of_month.csv", encoding="latin-1")))
+_hdr = [r for r in _rows if r and r[0] == "Code"][0]
+_eur = [r for r in _rows if len(r) > 2 and r[1] == "EUR"][0]
+_EN = {m: i + 1 for i, m in enumerate(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"])}
+_fx = {(int(h.split()[1]), _EN[h.split()[0]]): float(v) for h, v in zip(_hdr[2:], _eur[2:]) if v != ""}
+df["eur_lek"] = [_fx.get(q) for q in QS]
+df["ln_eur"]  = df["eur_lek"].apply(lambda x: math.log(x) if pd.notna(x) else None)
+
+# (f) unemployment rate, 15 years and over, both sexes, all education levels (INSTAT, quarterly Labour Force Survey), %.
+#     The export is a SpreadsheetML file that is not well-formed XML, so it is read with regular expressions.
+import re as _re, html as _html
+_raw = open(U + "instat_lfs_quarterly_indicators.xml", encoding="iso-8859-1").read()
+_P = [[_html.unescape(_re.sub(r"<[^>]+>", "", c)).strip()
+       for c in _re.findall(r"<Cell[^>]*?(?:/>|>(.*?)</Cell>)", r, flags=_re.S)]
+      for r in _re.findall(r"<Row[^>]*?(?:/>|>(.*?)</Row>)", _raw, flags=_re.S)]
+_j0 = _P[3].index("Shkalla e papunësisë")                       # first column of the unemployment-rate block
+_row = _P[5]                                                    # Gjithsej | 15+ | Gjithsej
+assert _row[:3] == ["Gjithsej", "15+", "Gjithsej"]
+_un = {}
+for _j in range(_j0, len(_P[4])):
+    if _j > _j0 and _P[3][_j]:                                  # next indicator block starts
+        break
+    _y, _q = _P[4][_j].split("-")
+    _un[(int(_y), int(_q) * 3)] = float(_row[_j])
+df["papunesia"] = [_un.get(q) for q in QS]
+
 df.index.name = "tremujori"
 df = df.round(4)
 df.to_csv(str(DER / "dataset_quarterly_2016Q1_2026Q2.csv"))

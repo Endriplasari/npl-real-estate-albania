@@ -1,0 +1,236 @@
+{
+ "decomp": [
+  {
+   "period": "2016Q1-2026Q2",
+   "npl_from": 19.31,
+   "npl_to": 3.7,
+   "dln_ratio": -1.652290276790244,
+   "dln_stock": -1.0635560983679573,
+   "dln_credit": -0.5887341784609876,
+   "share_numerator": 0.6436859874489077,
+   "share_denominator": 0.35631401257451484,
+   "stock_from_bn": 102.4927973,
+   "stock_to_bn": 35.3831751,
+   "credit_from_bn": 530.77575,
+   "credit_to_bn": 956.3020300000001
+  },
+  {
+   "period": "2016Q1-2021Q4",
+   "npl_from": 19.31,
+   "npl_to": 5.65,
+   "dln_ratio": -1.2289675512820735,
+   "dln_stock": -1.0410183592309974,
+   "dln_credit": -0.1879491926361224,
+   "share_numerator": 0.8470674088546885,
+   "share_denominator": 0.15293259162135858,
+   "stock_from_bn": 102.4927973,
+   "stock_to_bn": 36.1896862,
+   "credit_from_bn": 530.77575,
+   "credit_to_bn": 640.52542
+  },
+  {
+   "period": "2021Q4-2026Q2",
+   "npl_from": 5.65,
+   "npl_to": 3.7,
+   "dln_ratio": -0.4233227255081708,
+   "dln_stock": -0.022537739136960066,
+   "dln_credit": -0.40078498582486544,
+   "share_numerator": 0.05324008794922363,
+   "share_denominator": 0.9467599107601646,
+   "stock_from_bn": 36.1896862,
+   "stock_to_bn": 35.3831751,
+   "credit_from_bn": 640.52542,
+   "credit_to_bn": 956.3020300000001
+  }
+ ],
+ "inputs": {
+  "total_loans": 956302.03,
+  "mortgage": 258947.43,
+  "mortgage_share": 27.077996477744588,
+  "business_re": 226116.3,
+  "business_re_share": 23.64486249182175,
+  "npl_ratio": 3.7,
+  "npl_stock": 35383.1751,
+  "rwa": 1194029.0,
+  "capital": 235631.0,
+  "car0": 19.734110310553596
+ },
+ "ltv_low_shares": {
+  "2021H2": 0.5,
+  "2022H1": 0.86,
+  "2022H2": 0.8,
+  "2023H1": 0.85,
+  "2023H2": 0.6,
+  "2024H1": 0.65,
+  "2025H1": 0.62,
+  "2025H2": 0.38
+ },
+ "sL_baseline": 0.6575,
+ "grid": [
+  {
+   "shock": 0.0,
+   "pd_mult": 2,
+   "pd_stress": 7.400000000000001,
+   "lgd_res": 0.0,
+   "lgd_bus": 0.0,
+   "loss_bn": 0.0,
+   "loss_pct_capital": 0.0,
+   "car_after": 19.734110310553596,
+   "npl_after": 5.576745780828261,
+   "share_neg_equity_res": 0.0
+  },
+  {
+   "shock": 0.0,
+   "pd_mult": 3,
+   "pd_stress": 11.100000000000001,
+   "lgd_res": 0.0,
+   "lgd_bus": 0.0,
+   "loss_bn": 0.0,
+   "loss_pct_capital": 0.0,
+   "car_after": 19.734110310553596,
+   "npl_after": 7.453491562702216,
+   "share_neg_equity_res": 0.0
+  },
+  {
+   "shock": 0.0,
+   "pd_mult": 4,
+   "pd_stress": 14.800000000000002,
+   "lgd_res": 0.0,
+   "lgd_bus": 0.0,
+   "loss_bn": 0.0,
+   "loss_pct_capital": 0.0,
+   "car_after": 19.734110310553596,
+   "npl_after": 9.330237344576169,
+   "share_neg_equity_res": 0.0
+  },
+  {
+   "shock": 0.2,
+   "pd_mult": 2,
+   "pd_stress": 7.400000000000001,
+   "lgd_res": 5.023333333333328,
+   "lgd_bus": 20.000000000000007,
+   "loss_bn": 4.309097889958,
+   "loss_pct_capital": 1.8287482928638426,
+   "car_after": 19.373223105137477,
+   "npl_after": 5.576745780828261,
+   "share_neg_equity_res": 0.0
+  },
+  {
+   "shock": 0.2,
+   "pd_mult": 3,
+   "pd_stress": 11.100000000000001,
+   "lgd_res": 5.023333333333328,
+   "lgd_bus": 20.000000000000007,
+   "loss_bn": 6.463646834937001,
+   "loss_pct_capital": 2.743122439295764,
+   "car_after": 19.19277950242942,
+   "npl_after": 7.453491562702216,
+   "share_neg_equity_res": 0.0
+  },
+  {
+   "shock": 0.2,
+   "pd_mult": 4,
+   "pd_stress": 14.800000000000002,
+   "lgd_res": 5.023333333333328,
+   "lgd_bus": 20.000000000000007,
+   "loss_bn": 8.618195779916,
+   "loss_pct_capital": 3.657496585727685,
+   "car_after": 19.012335899721364,
+   "npl_after": 9.330237344576169,
+   "share_neg_equity_res": 0.0
+  },
+  {
+   "shock": 0.3,
+   "pd_mult": 2,
+   "pd_stress": 7.400000000000001,
+   "lgd_res": 8.67666666666667,
+   "lgd_bus": 30.000000000000004,
+   "loss_bn": 6.682414255382002,
+   "loss_pct_capital": 2.835965664696921,
+   "car_after": 19.17445771791288,
+   "npl_after": 5.576745780828261,
+   "share_neg_equity_res": 34.25
+  },
+  {
+   "shock": 0.3,
+   "pd_mult": 3,
+   "pd_stress": 11.100000000000001,
+   "lgd_res": 8.67666666666667,
+   "lgd_bus": 30.000000000000004,
+   "loss_bn": 10.023621383073003,
+   "loss_pct_capital": 4.253948497045381,
+   "car_after": 18.894631421592525,
+   "npl_after": 7.453491562702216,
+   "share_neg_equity_res": 34.25
+  },
+  {
+   "shock": 0.3,
+   "pd_mult": 4,
+   "pd_stress": 14.800000000000002,
+   "lgd_res": 8.67666666666667,
+   "lgd_bus": 30.000000000000004,
+   "loss_bn": 13.364828510764005,
+   "loss_pct_capital": 5.671931329393842,
+   "car_after": 18.61480512527217,
+   "npl_after": 9.330237344576169,
+   "share_neg_equity_res": 34.25
+  }
+ ],
+ "sensitivity": [
+  {
+   "haircut": 0.1,
+   "sL": 0.5,
+   "loss_bn": 7.319235038400003,
+   "car_after": 19.121123939334804
+  },
+  {
+   "haircut": 0.1,
+   "sL": 0.6575,
+   "loss_bn": 6.594907287204002,
+   "car_after": 19.181786431719498
+  },
+  {
+   "haircut": 0.1,
+   "sL": 0.8,
+   "loss_bn": 5.939563131360003,
+   "car_after": 19.236671543877076
+  },
+  {
+   "haircut": 0.2,
+   "sL": 0.5,
+   "loss_bn": 11.170473655800004,
+   "car_after": 18.798582475316763
+  },
+  {
+   "haircut": 0.2,
+   "sL": 0.6575,
+   "loss_bn": 10.023621383073003,
+   "car_after": 18.894631421592525
+  },
+  {
+   "haircut": 0.2,
+   "sL": 0.8,
+   "loss_bn": 8.985993136320003,
+   "car_after": 18.981532849175355
+  },
+  {
+   "haircut": 0.3,
+   "sL": 0.5,
+   "loss_bn": 15.309143920500006,
+   "car_after": 18.451968593685745
+  },
+  {
+   "haircut": 0.3,
+   "sL": 0.6575,
+   "loss_bn": 13.830308095141508,
+   "car_after": 18.57582118230449
+  },
+  {
+   "haircut": 0.3,
+   "sL": 0.8,
+   "loss_bn": 12.492313776960005,
+   "car_after": 18.68787828629288
+  }
+ ],
+ "loss_to_12pct_bn": 92.34752000000002
+}

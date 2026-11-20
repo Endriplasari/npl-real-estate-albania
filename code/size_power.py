@@ -1,181 +1,256 @@
 """
-Size and power of the ARDL bounds F-test under the M1 design.
+Size and power of the ARDL bounds procedure under the M1 design (revision 2).
 
-Two things the placebo regressions and the standard-error-based minimum
-detectable effect do NOT establish, and that are therefore computed here:
+Revision 1 used idealised data-generating processes (independent unit-variance
+random walks, independent errors). In response to the review, the experiments
+are now calibrated to the estimated processes:
 
-  (1) the empirical rejection rate of the bounds F-test under the null of
-      no level relationship, evaluated against the finite-sample critical
-      values actually used in the paper;
-  (2) the rejection rate of the same test under alternatives in which a
-      level relationship exists with a known speed of adjustment.
+  * the null model for the dependent variable is the autoregression in first
+    differences estimated on the data, with its estimated innovation variance;
+  * the regressors are the observed ones (held fixed) or are simulated from
+    processes estimated on them;
+  * serially correlated errors and a break in the drift of the dependent
+    variable at the 2022Q1 regime change are added as separate designs;
+  * under the alternative, the equilibrium error has the residual standard
+    deviation of the estimated error-correction model, and the long-run
+    coefficient is stated in economically interpretable units.
 
-The conditional ECM is coded directly so the simulation is independent of
-the statsmodels routine that produced the reported statistics; agreement
-between the two is itself the check.
-
-Design mirrors M1: 41 quarterly observations, four regressors, ARDL(2,1)
-in unrestricted error-correction form, unrestricted intercept (Case III),
-one fixed dummy. 39 effective observations, 12 parameters, 27 residual df.
+The test applied in every replication is the one applied in the paper: the
+conditional ECM with the lag orders selected for M1, an unrestricted intercept
+and the COVID dummy, evaluated against the finite-sample 5% bounds for the
+F-statistic and for the t-statistic on the lagged dependent level.
 """
-import pathlib, json
+import json
 import numpy as np
+import statsmodels.api as sm
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-OUT = ROOT / "output"
+from common import load, fit_ecm, bounds_stats, bounds_cv, diagnostics, jdump, OUT, REGIME_START
 
-N_OBS = 41          # sample length, as in M1
-K = 4               # regressors entering in levels
-P_LAG, Q_LAG = 2, 1 # ARDL orders selected by AIC for M1
+SEED = 20261114
 NREP_SIZE = 5000
 NREP_POWER = 2000
+DEP = "npl_logit"
+REGS = ["hip_share", "ppb_share", "pbb", "repo_real"]
+I1 = [0, 1]            # columns of REGS treated as I(1)
+I0 = [2, 3]            # columns of REGS treated as I(0)
 
-# finite-sample critical values reported for M1 (statsmodels, 20,000 sims, Case III)
-CV = {"lower": {90.0: 2.667634, 95.0: 3.216148, 99.0: 4.457236},
-      "upper": {90.0: 3.849789, 95.0: 4.588766, 99.0: 6.214031}}
+rng = np.random.default_rng(SEED)
+d = load()
+dd = d.loc["2016Q1":"2026Q1", [DEP] + REGS + ["d_covid", "d_regime"]].dropna()
+m1 = json.load(open(str(OUT / "results.json")))["ardl"]["M1"]
+P, Q = m1["p"], m1["q"]
+HB = 2
+Y = dd[DEP].values.astype(float)
+X = dd[REGS].values.astype(float)
+COVID = dd["d_covid"].values.astype(float)
+REGIME = dd["d_regime"].values.astype(float)
+T = len(Y)
 
-rng = np.random.default_rng(20261020)
 
-
-def bounds_F(y, X, dummy, p=P_LAG, q=Q_LAG):
-    """Bounds F for H0: phi = 0 and beta = 0 in the conditional ECM."""
-    T, k = X.shape
-    dy = np.diff(y)
-    dX = np.diff(X, axis=0)
-    start = max(p, q)                      # first usable index into the differenced series
-    n = T - 1 - start + 1
-    cols = [np.ones(n)]                    # unrestricted intercept
-    lev = []
-    # levels at t-1
-    y_lag = y[start - 1:T - 1]
-    cols.append(y_lag); lev.append(len(cols) - 1)
-    for j in range(k):
-        cols.append(X[start - 1:T - 1, j]); lev.append(len(cols) - 1)
-    # short-run: dy lags 1..p-1
+def ecm_test(y, Xm, dummy, p=P, q=Q, hb=HB):
+    """F and t of the bounds procedure in the conditional ECM (intercept, dummy)."""
+    n = len(y)
+    dy = np.diff(y, prepend=np.nan)
+    dX = np.diff(Xm, axis=0, prepend=np.full((1, Xm.shape[1]), np.nan))
+    idx = np.arange(hb, n)
+    cols = [np.ones(len(idx)), y[idx - 1]]
+    for j in range(Xm.shape[1]):
+        cols.append(Xm[idx - 1, j])
+    nlev = 1 + Xm.shape[1]
     for i in range(1, p):
-        cols.append(dy[start - 1 - i:T - 1 - i])
-    # short-run: dX lags 0..q-1
-    for j in range(k):
+        cols.append(dy[idx - i])
+    for j in range(Xm.shape[1]):
         for i in range(0, q):
-            cols.append(dX[start - 1 - i:T - 1 - i, j])
-    cols.append(dummy[start:T])            # fixed dummy
+            cols.append(dX[idx - i, j])
+    cols.append(dummy[idx])
     Z = np.column_stack(cols)
-    yv = dy[start - 1:]
-    if Z.shape[0] != yv.shape[0]:
-        m = min(Z.shape[0], yv.shape[0]); Z = Z[:m]; yv = yv[:m]
-    b, *_ = np.linalg.lstsq(Z, yv, rcond=None)
+    yv = dy[idx]
+    ZtZi = np.linalg.inv(Z.T @ Z)
+    b = ZtZi @ (Z.T @ yv)
     e = yv - Z @ b
-    rss_u = e @ e
     dfr = len(yv) - Z.shape[1]
-    keep = [c for c in range(Z.shape[1]) if c not in lev]
-    Zr = Z[:, keep]
-    br, *_ = np.linalg.lstsq(Zr, yv, rcond=None)
-    er = yv - Zr @ br
-    rss_r = er @ er
-    return ((rss_r - rss_u) / len(lev)) / (rss_u / dfr), dfr
+    s2 = e @ e / dfr
+    Rm = np.zeros((nlev, Z.shape[1]))
+    for i in range(nlev):
+        Rm[i, 1 + i] = 1.0
+    rb = Rm @ b
+    F = float(rb @ np.linalg.solve(Rm @ ZtZi @ Rm.T, rb) / nlev / s2)
+    t = float(b[1] / np.sqrt(s2 * ZtZi[1, 1]))
+    return F, t, dfr
 
 
-def make_dummy(T):
-    """COVID moratorium dummy, as in the data: four consecutive quarters."""
-    d = np.zeros(T); d[17:21] = 1.0
-    return d
+# ------------------------------------------------------------ check against the estimation code
+res, y_, X_ = fit_ecm(dd, DEP, REGS, P, Q, trend="c", fixed=("d_covid",), hold_back=HB)
+F_ref, t_ref, phi_ref, _, _ = bounds_stats(res, DEP, REGS)
+F_chk, t_chk, dfr = ecm_test(Y, X, COVID)
+assert abs(F_ref - F_chk) < 1e-8 and abs(t_ref - t_chk) < 1e-8, (F_ref, F_chk, t_ref, t_chk)
+NOBS = int(res.nobs)
+cv = bounds_cv(NOBS, len(REGS), 3, nsim=40000, seed=42)
+F_UP5, F_UP10, F_LO5 = cv["F"]["5"][1], cv["F"]["10"][1], cv["F"]["5"][0]
+T_UP5 = cv["t"]["5"][1]
+SIGMA_ECM = float(np.sqrt(res.scale))
+e_ecm = res.resid
+RHO_ECM = float(np.corrcoef(e_ecm[1:], e_ecm[:-1])[0, 1])
+
+OUTD = {"design": dict(dep=DEP, regs=REGS, p=P, q=Q, nobs=NOBS, dfr=dfr, seed=SEED,
+                       F_upper_5=F_UP5, F_upper_10=F_UP10, F_lower_5=F_LO5, t_upper_5=T_UP5,
+                       check_F=F_chk, check_t=t_chk)}
+
+# ------------------------------------------------------------ calibration
+dy = np.diff(Y)
+# null model: AR(1) in first differences with intercept and COVID dummy
+Zn = np.column_stack([np.ones(T - 2), dy[:-1], COVID[2:]])
+fit_n = sm.OLS(dy[1:], Zn).fit()
+MU, GAM, DCOV = [float(v) for v in fit_n.params]
+SIG0 = float(np.sqrt(fit_n.scale))
+RES0 = fit_n.resid - fit_n.resid.mean()
+# null model with regime-specific drift
+Zr = np.column_stack([1 - REGIME[2:], REGIME[2:], dy[:-1], COVID[2:]])
+fit_r = sm.OLS(dy[1:], Zr).fit()
+MU1, MU2, GAMR, DCOVR = [float(v) for v in fit_r.params]
+SIGR = float(np.sqrt(fit_r.scale))
+# regressor processes
+xpar = {}
+innov = np.empty((T - 2, len(REGS)))
+for j in range(len(REGS)):
+    if j in I1:
+        dx = np.diff(X[:, j])
+        f = sm.OLS(dx[1:], sm.add_constant(dx[:-1])).fit()
+    else:
+        f = sm.OLS(X[2:, j], sm.add_constant(X[1:-1, j])).fit()
+    xpar[j] = (float(f.params[0]), float(f.params[1]))
+    innov[:, j] = f.resid
+COVX = np.cov(innov, rowvar=False)
+CHOLX = np.linalg.cholesky(COVX)
+
+OUTD["calibration"] = dict(
+    null_model=dict(mu=MU, gamma=GAM, covid=DCOV, sigma=SIG0),
+    null_model_regime=dict(mu_writeoff=MU1, mu_expansion=MU2, gamma=GAMR, covid=DCOVR, sigma=SIGR),
+    ecm_sigma=SIGMA_ECM, ecm_resid_ar1=RHO_ECM, ecm_bg_p=diagnostics(res)["lm"][1],
+    regressors={REGS[j]: dict(kind="I(1)" if j in I1 else "I(0)", const=xpar[j][0], ar=xpar[j][1],
+                              innov_sd=float(np.sqrt(COVX[j, j]))) for j in range(len(REGS))})
+print("calibration:", json.dumps(OUTD["calibration"], indent=1)[:900])
 
 
-def draw_regressors(T, integ):
-    """integ: 'I1' all unit root, 'I0' all stationary, 'mixed' 2+2 as in M1."""
-    e = rng.standard_normal((T, K))
-    if integ == "I1":
-        return np.cumsum(e, axis=0)
-    if integ == "I0":
-        return e
-    X = np.empty((T, K))
-    X[:, :2] = np.cumsum(e[:, :2], axis=0)   # exposure shares: I(1)
-    X[:, 2:] = e[:, 2:]                      # GDP growth, real policy rate: I(0)
-    return X
+def gen_y_null(errors, mu1=MU, mu2=MU, gam=GAM, dcov=DCOV):
+    y = np.empty(T)
+    y[0] = Y[0]
+    y[1] = Y[1]
+    for t in range(2, T):
+        mu = mu2 if REGIME[t] == 1 else mu1
+        y[t] = y[t - 1] + mu + gam * (y[t - 1] - y[t - 2]) + dcov * COVID[t] + errors[t]
+    return y
 
 
-# ----------------------------------------------------------------- SIZE
-def size(integ, nrep=NREP_SIZE):
-    D = make_dummy(N_OBS)
-    F = np.empty(nrep)
+def ar_errors(rho, sigma):
+    """AR(1) errors with unconditional standard deviation sigma."""
+    eta = rng.standard_normal(T) * sigma * np.sqrt(1 - rho ** 2)
+    e = np.empty(T)
+    e[0] = rng.standard_normal() * sigma
+    for t in range(1, T):
+        e[t] = rho * e[t - 1] + eta[t]
+    return e
+
+
+def gen_x_sim():
+    v = rng.standard_normal((T, len(REGS))) @ CHOLX.T
+    Xs = np.empty((T, len(REGS)))
+    Xs[:2] = X[:2]
+    for j in range(len(REGS)):
+        a, b = xpar[j]
+        for t in range(2, T):
+            if j in I1:
+                Xs[t, j] = Xs[t - 1, j] + a + b * (Xs[t - 1, j] - Xs[t - 2, j]) + v[t, j]
+            else:
+                Xs[t, j] = a + b * Xs[t - 1, j] + v[t, j]
+    return Xs
+
+
+def run_size(label, make, nrep=NREP_SIZE):
+    F = np.empty(nrep); t = np.empty(nrep)
     for r in range(nrep):
-        y = np.cumsum(rng.standard_normal(N_OBS))     # no level relationship
-        X = draw_regressors(N_OBS, integ)
-        F[r], dfr = bounds_F(y, X, D)
-    out = {"n_rep": nrep, "mean_F": float(F.mean())}
-    for lvl in (90.0, 95.0, 99.0):
-        a = (100 - lvl) / 100
-        out[f"reject_upper_{int(lvl)}"] = float((F > CV["upper"][lvl]).mean())
-        out[f"reject_lower_{int(lvl)}"] = float((F > CV["lower"][lvl]).mean())
-        out[f"nominal_{int(lvl)}"] = a
-    out["q95_simulated"] = float(np.quantile(F, 0.95))
+        y, Xm = make()
+        F[r], t[r], _ = ecm_test(y, Xm, COVID)
+    out = dict(design=label, nrep=nrep, mean_F=float(F.mean()),
+               rej_F_upper_5=float((F > F_UP5).mean()), rej_F_upper_10=float((F > F_UP10).mean()),
+               rej_F_lower_5=float((F > F_LO5).mean()),
+               rej_joint_5=float(((F > F_UP5) & (t < T_UP5)).mean()))
+    print(f"{label:62} mean F={out['mean_F']:.2f}  F>U5: {out['rej_F_upper_5']:.3f}  "
+          f"F>U10: {out['rej_F_upper_10']:.3f}  joint: {out['rej_joint_5']:.3f}")
     return out
 
 
-# ----------------------------------------------------------------- POWER
-def power(phi, sigma, nrep=NREP_POWER, integ="mixed"):
-    """DGP: y error-corrects towards y = beta'x with speed |phi|.
+print("\nSIZE (no level relationship), %d replications, nominal 5%%" % NREP_SIZE)
+size = []
 
-    beta loads on the first regressor only, so the long-run relationship is
-    y = x1 + equilibrium error with standard deviation sigma.
-    """
-    D = make_dummy(N_OBS)
-    beta = np.zeros(K); beta[0] = 1.0
-    crit = CV["upper"][95.0]
-    rej = 0
+def ideal():
+    e = rng.standard_normal((T, 5))
+    Xi = np.empty((T, 4))
+    Xi[:, :2] = np.cumsum(e[:, 1:3], axis=0)
+    Xi[:, 2:] = e[:, 3:]
+    return np.cumsum(e[:, 0]), Xi
+
+size.append(run_size("A. Idealised: unit random walks, i.i.d. errors (revision 1 design)", ideal))
+size.append(run_size("B. Calibrated null, observed regressors, Gaussian errors",
+                     lambda: (gen_y_null(rng.standard_normal(T) * SIG0), X)))
+size.append(run_size("C. Calibrated null, observed regressors, resampled residuals",
+                     lambda: (gen_y_null(rng.choice(RES0, size=T, replace=True)), X)))
+size.append(run_size("D. As B with AR(1) errors, rho = 0.3", lambda: (gen_y_null(ar_errors(0.3, SIG0)), X)))
+size.append(run_size("E. As B with AR(1) errors, rho = 0.5", lambda: (gen_y_null(ar_errors(0.5, SIG0)), X)))
+size.append(run_size("F. As B with a break in drift at 2022Q1 (estimated)",
+                     lambda: (gen_y_null(rng.standard_normal(T) * SIGR, MU1, MU2, GAMR, DCOVR), X)))
+size.append(run_size("G. As F with AR(1) errors, rho = 0.3",
+                     lambda: (gen_y_null(ar_errors(0.3, SIGR), MU1, MU2, GAMR, DCOVR), X)))
+size.append(run_size("H. Calibrated null, regressors simulated from estimated processes",
+                     lambda: (gen_y_null(rng.standard_normal(T) * SIG0), gen_x_sim())))
+OUTD["size"] = size
+
+
+# ------------------------------------------------------------ power
+def gen_y_alt(phi, beta, errors):
+    """ECM towards y = c + beta * mortgage share, with the estimated COVID effect."""
+    c = Y[0] - beta * X[0, 0]
+    y = np.empty(T)
+    y[0] = Y[0]
+    for t in range(1, T):
+        y[t] = y[t - 1] + phi * (y[t - 1] - c - beta * X[t - 1, 0]) + DCOV * COVID[t] + errors[t]
+    return y
+
+
+def run_power(phi, beta, rho=0.0, nrep=NREP_POWER):
+    rF = 0; rJ = 0
     for r in range(nrep):
-        X = draw_regressors(N_OBS, integ)
-        eq = X @ beta
-        y = np.empty(N_OBS); y[0] = eq[0]
-        e = rng.standard_normal(N_OBS) * sigma
-        dX = np.diff(X, axis=0, prepend=X[:1])
-        for t in range(1, N_OBS):
-            y[t] = y[t - 1] + phi * (y[t - 1] - eq[t - 1]) + 0.5 * (dX[t] @ beta) + e[t]
-        F, _ = bounds_F(y, X, D)
-        rej += F > crit
-    return rej / nrep
+        e = ar_errors(rho, SIGMA_ECM) if rho else rng.standard_normal(T) * SIGMA_ECM
+        F, t, _ = ecm_test(gen_y_alt(phi, beta, e), X, COVID)
+        rF += F > F_UP5
+        rJ += (F > F_UP5) and (t < T_UP5)
+    return rF / nrep, rJ / nrep
 
 
-if __name__ == "__main__":
-    res = {"design": {"n": N_OBS, "k": K, "p": P_LAG, "q": Q_LAG,
-                      "case": "III (unrestricted intercept, no trend)",
-                      "critical_values": CV,
-                      "cv_source": "statsmodels UECM.bounds_test(asymptotic=False, nsim=20000), as reported for M1"}}
+print("\nPOWER (level relationship present), %d replications per cell, 5%% level" % NREP_POWER)
+PHIS = (-0.10, -0.20, -0.30, -0.50, -0.75)
+BETAS = (0.05, 0.10, 0.20, 0.40)
+npl_end, npl_mean = float(d["npl"].iloc[-1]), float(d["npl"].mean())
+power = {"phis": list(PHIS), "betas": list(BETAS), "sigma": SIGMA_ECM, "cells": [],
+         "beta_in_npl_pp_end": {str(b): b * npl_end * (1 - npl_end / 100) for b in BETAS},
+         "beta_in_npl_pp_mean": {str(b): b * npl_mean * (1 - npl_mean / 100) for b in BETAS},
+         "signal_to_noise": {str(b): float(b * np.std(np.diff(X[:, 0]), ddof=1) / SIGMA_ECM) for b in BETAS}}
+print(f"{'|phi|':>6}{'half-life':>10}" + "".join(f"{'beta='+str(b):>14}" for b in BETAS) + "   (F rule / joint F and t rule)")
+for phi in PHIS:
+    hl = float(np.log(0.5) / np.log(1 + phi))
+    line = f"{abs(phi):6.2f}{hl:10.1f}"
+    for b in BETAS:
+        pF, pJ = run_power(phi, b)
+        power["cells"].append(dict(phi=phi, half_life=hl, beta=b, power_F=float(pF), power_joint=float(pJ)))
+        line += f"   {pF:.3f}/{pJ:.3f}"
+    print(line)
+# robustness: serially correlated equilibrium errors
+power["ar_errors"] = []
+for phi in PHIS:
+    pF, pJ = run_power(phi, 0.10, rho=0.3)
+    power["ar_errors"].append(dict(phi=phi, beta=0.10, rho=0.3, power_F=float(pF), power_joint=float(pJ)))
+    print(f"  rho=0.3, beta=0.10, |phi|={abs(phi):.2f}: {pF:.3f}/{pJ:.3f}")
+OUTD["power"] = power
 
-    print("=" * 78)
-    print("EMPIRICAL SIZE OF THE BOUNDS F-TEST")
-    print(f"{NREP_SIZE} replications, no level relationship imposed")
-    print("=" * 78)
-    print(f"{'regressors':<26}{'mean F':>9}{'vs upper 5%':>13}{'vs lower 5%':>13}{'vs upper 10%':>14}")
-    res["size"] = {}
-    for integ, lab in [("I1", "all I(1)"), ("I0", "all I(0)"), ("mixed", "two I(1), two I(0)")]:
-        s = size(integ)
-        res["size"][integ] = s
-        print(f"{lab:<26}{s['mean_F']:9.3f}{s['reject_upper_95']:13.4f}"
-              f"{s['reject_lower_95']:13.4f}{s['reject_upper_90']:14.4f}")
-    print("\nUnder the null the rejection rate at the I(1) upper bound should be at or")
-    print("below the nominal level; at the I(0) lower bound it should be close to it.")
-
-    print()
-    print("=" * 78)
-    print("POWER OF THE BOUNDS F-TEST AGAINST ERROR-CORRECTING ALTERNATIVES")
-    print(f"{NREP_POWER} replications, 5% level, I(1) upper bound")
-    print("=" * 78)
-    sigmas = [0.25, 0.50, 1.00]
-    print(f"{'|phi|':>7}{'half-life (q)':>15}" + "".join(f"{'sigma='+str(s):>12}" for s in sigmas))
-    res["power"] = {}
-    for phi in (-0.10, -0.20, -0.30, -0.40, -0.50, -0.60, -0.75):
-        hl = np.log(0.5) / np.log(1 + phi)
-        row = {}
-        line = f"{abs(phi):7.2f}{hl:15.1f}"
-        for s in sigmas:
-            pw = power(phi, s)
-            row[str(s)] = pw
-            line += f"{pw:12.3f}"
-        res["power"][f"{abs(phi):.2f}"] = {"half_life_q": float(hl), **row}
-        print(line)
-    print("\nsigma is the standard deviation of the equilibrium error relative to unit")
-    print("innovations in the regressors: 0.25 is a tight long-run relationship.")
-
-    json.dump(res, open(str(OUT / "size_power.json"), "w"), indent=1)
-    print("\nsaved -> output/size_power.json")
+jdump(OUTD, "size_power.json")
+print("\nsaved -> output/size_power.json")
