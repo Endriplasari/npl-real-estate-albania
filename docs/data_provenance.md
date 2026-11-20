@@ -36,6 +36,7 @@ recorded in the paper.
 | File | Source | Note |
 |---|---|---|
 | `boa_policy_rates.xlsx` | Official rates of the Bank of Albania | A table of Supervisory Council decisions, not a time series. Converted to a monthly series by forward-fill in `build.py`. |
+| `boa_exchange_rates_end_of_month.csv` | External sector statistics, Exchange rates: end-of-month official rates of foreign currencies against the lek (the EUR row is used) | Monthly, Jan 2016 – Mar 2026, two decimal places. A CSV file; the interface names it `.csv.xls`. |
 
 Interest rate statistics on new lending are **not** used. A regulation adopted in
 September 2017 changed the compilation methodology, with first reporting in
@@ -50,6 +51,7 @@ instead.
 | `instat_gdp_quarterly_production.xlsx` | Quarterly national accounts, production approach, real growth rates | Quarterly | 2000Q1 – 2026Q1 |
 | `instat_cpi_annual_change.xlsx` | Consumer price index, annual change by COICOP group | Monthly | Jan 2017 – Dec 2025 |
 | `instat_construction_cost_index.xlsx` | Construction cost index for new residential buildings | Quarterly | 2018Q1 – 2026Q2 |
+| `instat_lfs_quarterly_indicators.xml` | Statistical database, Labour market: quarterly labour market indicators by sex, age group and education (Labour Force Survey). The row used is the unemployment rate, both sexes, 15 years and over, all education levels. | Quarterly | 2012Q1 – 2026Q2 |
 
 Inflation for calendar 2016 is not covered by the file above. It is taken from
 the INSTAT monthly releases *Indeksi i Çmimeve të Konsumit*, specifically the
@@ -59,6 +61,12 @@ with a comment recording the source.
 
 Note: the CPI has been compiled with a new basket since January 2016
 (December 2015 = 100, 333 items, ECOICOP classification).
+
+Notes on the labour market file. The INSTAT export is a SpreadsheetML file that is not well-formed XML and
+carries the markup of the web page after the closing workbook tag; that trailing markup was removed and the
+workbook is otherwise unchanged. `build.py` reads it with regular expressions. The series is not seasonally
+adjusted. INSTAT notes that the results for 2023 and 2024 are calibrated to population figures based on the
+2023 Population and Housing Census.
 
 ## Not redistributed
 

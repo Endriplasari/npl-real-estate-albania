@@ -5,12 +5,17 @@
 Replication package for:
 
 > Zeneli, M., Plasari, E., Meka, E., Baholli, I., & Kruja, S. *Real Estate Exposure
-> and Nonperforming Loans in Albania: Identification Failure and a Calibrated
+> and Nonperforming Loans in Albania: Limited Statistical Power and a Calibrated
 > Stress Alternative.*
 
-This repository contains everything needed to reproduce every number, table and
-figure in the paper, starting either from the raw statistical downloads or from
-the assembled analysis dataset.
+This repository contains everything needed to reproduce every number and table in
+the paper, starting either from the raw statistical downloads or from the
+assembled analysis dataset.
+
+**Version 2.0.0** accompanies the revised manuscript. It corrects several
+computations of version 1.1.0 and adds the analyses requested in review; see
+`docs/CHANGELOG.md`. The outputs of the first submission are kept in
+`output/v1_submitted/`.
 
 ---
 
@@ -23,9 +28,10 @@ pip install -r requirements.txt
 python code/run_all.py
 ```
 
-Runtime is roughly 25 minutes on a standard machine, dominated by the Monte Carlo
-simulations. To reproduce only the estimation results from the assembled dataset,
-skip `build.py` and run `econ.py`, `size_power.py` and `scenario.py` directly.
+Runtime is about four minutes on a standard machine, most of it the Gregory-Hansen
+critical values. To reproduce only the
+estimation results from the assembled dataset, skip `build.py` and run the other
+scripts in the order given in `run_all.py`.
 
 ---
 
@@ -34,17 +40,31 @@ skip `build.py` and run `econ.py`, `size_power.py` and `scenario.py` directly.
 ```
 code/
   build.py                 assembles the quarterly dataset from data/raw
-  econ.py                  unit roots, bounds tests, cointegration, placebo, MDE
-  size_power.py            Monte Carlo size and power of the ARDL bounds F-test
-  gh_critical_values.py    Monte Carlo critical values for the Gregory-Hansen test
-  scenario.py              calibrated collateral-coverage stress exercise
+  common.py                shared routines: conditional ECM, bounds F- and t-statistics,
+                           simulated critical values, long-run coefficients, diagnostics
+  gh_critical_values.py    Gregory-Hansen statistic and its Monte Carlo critical values
+  econ.py                  unit roots, bounds tests, diagnostics, additional specifications,
+                           lag grid, Gregory-Hansen, Johansen, placebo, minimum detectable effects
+  regimes.py               structural stability across regimes and the COVID-19 period
+  size_power.py            Monte Carlo size and power of the bounds procedure (calibrated)
+  scenario.py              calibrated stress exercise, sensitivity, loss distribution,
+                           reverse stress test, benchmark under IMF staff assumptions
   run_all.py               runs the above in order
 data/
   raw/                     statistical downloads, unmodified
   derived/                 the assembled analysis dataset
 output/                    generated results in JSON form
-docs/                      data provenance and the house price reconstruction
+  v1_submitted/            outputs of version 1.1.0 (first submission)
+docs/                      data provenance, house price reconstruction, change log
 ```
+
+| Output file | Produced by | Tables in the revised paper |
+|---|---|---|
+| `output/results.json` | `econ.py` | 3, 7-14, 16, 19, A2; Section 6.12 |
+| `output/gh_cv.json` | `gh_critical_values.py` | 13 (critical values) |
+| `output/regimes.json` | `regimes.py` | 15 |
+| `output/size_power.json` | `size_power.py` | 17, 18 |
+| `output/scenario.json` | `scenario.py` | 4, 20-25 |
 
 ---
 
@@ -58,7 +78,7 @@ published by the Bank of Albania and by INSTAT. They are reproduced here under
 attribution so that the build step can be executed without manual retrieval.
 
 `data/derived/dataset_quarterly_2016Q1_2026Q2.csv` is the analysis dataset:
-42 quarterly observations, 2016Q1 to 2026Q2, 27 variables. It is produced by
+42 quarterly observations, 2016Q1 to 2026Q2, 39 variables. It is produced by
 `code/build.py` and is the only input to the estimation scripts.
 
 ### What is not included, and why
@@ -87,22 +107,26 @@ decimal places.
 Random seeds are fixed throughout, so re-running the scripts reproduces the
 published figures exactly:
 
-| Seed       | Where                                   | What it controls                          |
-|------------|-----------------------------------------|-------------------------------------------|
-| `42`       | `econ.py`, `UECM.bounds_test(rng=42)`   | finite-sample bounds-test critical values |
-| `2026`     | `econ.py`                               | random-walk placebo replications          |
-| `19960303` | `gh_critical_values.py`                 | Gregory-Hansen critical values            |
-| `20261020` | `size_power.py`                         | size and power simulations                |
-
-`scenario.py` is deterministic and uses no random numbers.
+| Seed       | Where                                        | What it controls                                   |
+|------------|----------------------------------------------|----------------------------------------------------|
+| `42`       | `common.simulate_bounds_cv`                  | finite-sample bounds F and t critical values       |
+| `2026`     | `econ.py`                                    | random-walk placebo replications                   |
+| `19960303` | `gh_critical_values.py`                      | Gregory-Hansen critical values                     |
+| `20261114` | `regimes.py`, `size_power.py`, `scenario.py` | sup-F bootstrap, size and power, loss distribution |
 
 Two sets of critical values are simulated rather than taken from published
-tables. The bounds-test values follow the logic of Narayan (2005) but are
-generated for the exact sample length and regressor count used here. The
-Gregory-Hansen values are generated for n = 42; the simulation code was
-validated by reproducing, at n = 250, the asymptotic values published in
-Gregory and Hansen (1996b, Table 1) to within 0.18 across all cells tested.
-That validation is in `output/gh_validation_CS.json`.
+tables. The bounds-test values follow the design of Pesaran, Shin and Smith
+(2001) and the logic of Narayan (2005), and are generated for the exact number
+of observations and regressors of each model (40,000 replications); at
+T = 1,000 the routine reproduces the published asymptotic bounds. The
+Gregory-Hansen values are generated for the sample sizes used (41 and 39
+observations, 5,000 replications); the routine was validated by reproducing,
+at n = 250, the asymptotic values in Gregory and Hansen (1996a, Table 1) for
+m = 1 and m = 2 to within 0.22. The validation is stored in `output/gh_cv.json`.
+
+Results were produced with Python 3.13, statsmodels 0.15.0 and arch 9.0.0.
+Unit-root p-values can differ in the third decimal under other versions of
+`arch`.
 
 ---
 
